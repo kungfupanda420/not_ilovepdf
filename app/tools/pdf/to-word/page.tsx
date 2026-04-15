@@ -6,11 +6,7 @@ import { ToolPage } from "@/components/tool-page";
 import { FileDropzone } from "@/components/file-dropzone";
 import { ProgressIndicator } from "@/components/progress-indicator";
 import { Button } from "@/components/ui/button";
-import * as pdfjsLib from "pdfjs-dist";
 import { Document, Packer, Paragraph, TextRun } from "docx";
-
-// Set worker source to the local public copy
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 export default function PDFToWordPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -42,6 +38,9 @@ export default function PDFToWordPage() {
     setMessage("Converting to Word...");
 
     try {
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+
       const arrayBuffer = await files[0].arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const numPages = pdf.numPages;

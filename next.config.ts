@@ -8,8 +8,16 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  // Empty turbopack config to acknowledge Turbopack is used (Next.js 16 default)
-  turbopack: {},
+  // Turbopack config with resolve aliases for Node.js modules that don't exist in browser
+  turbopack: {
+    resolveAlias: {
+      fs: { browser: './empty-module.js' },
+      path: { browser: './empty-module.js' },
+      crypto: { browser: './empty-module.js' },
+      stream: { browser: './empty-module.js' },
+      buffer: { browser: './empty-module.js' },
+    },
+  },
   // Keep webpack fallbacks for compatibility when webpack is explicitly used
   webpack: (config, { isServer }) => {
     if (!isServer) {
