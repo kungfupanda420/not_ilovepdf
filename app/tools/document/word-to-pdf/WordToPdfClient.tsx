@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { FileCode, Download } from "lucide-react";
 import { ToolPage } from "@/components/tool-page";
 import { FileDropzone } from "@/components/file-dropzone";
@@ -14,16 +14,32 @@ export default function WordToPdfClient() {
   const [message, setMessage] = useState("");
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
+  // Cleanup download URL when component unmounts or new conversion starts
+  useEffect(() => {
+    return () => {
+      if (downloadUrl) {
+        URL.revokeObjectURL(downloadUrl);
+      }
+    };
+  }, [downloadUrl]);
+
   const handleFilesSelected = useCallback((newFiles: File[]) => {
     setFiles(newFiles);
     setStatus("idle");
-    setDownloadUrl(null);
-  }, []);
+    // Clean up old download URL
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      setDownloadUrl(null);
+    }
+  }, [downloadUrl]);
 
   const handleRemoveFile = useCallback(() => {
     setFiles([]);
-    setDownloadUrl(null);
-  }, []);
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      setDownloadUrl(null);
+    }
+  }, [downloadUrl]);
 
   const convertToPDF = async () => {
     if (files.length === 0) {
@@ -87,6 +103,7 @@ export default function WordToPdfClient() {
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : "Failed to convert document");
+      console.error("Conversion error:", err);
     }
   };
 
