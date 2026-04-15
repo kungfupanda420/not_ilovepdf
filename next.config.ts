@@ -1,14 +1,5 @@
-// next.config.js
+import type { NextConfig } from 'next'
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  // Your existing config (if any) goes here
-  // For example:
-  // reactStrictMode: true,
-  // images: { domains: ['example.com'] },
-  
-  // ADD THIS LINE:
-  turbopack: {},  // <-- Put this here
-}
+const nextConfig: NextConfig = {}
 
-module.exports = nextConfig
+export default nextConfig
