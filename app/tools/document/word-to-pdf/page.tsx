@@ -6,8 +6,6 @@ import { ToolPage } from "@/components/tool-page";
 import { FileDropzone } from "@/components/file-dropzone";
 import { ProgressIndicator } from "@/components/progress-indicator";
 import { Button } from "@/components/ui/button";
-import mammoth from "mammoth";
-import { jsPDF } from "jspdf";
 
 export default function WordToPDFPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -42,12 +40,16 @@ export default function WordToPDFPage() {
       const arrayBuffer = await files[0].arrayBuffer();
       setProgress(20);
 
+      const mammothModule = await import("mammoth");
+      const mammoth = mammothModule.default ?? mammothModule;
+
       // Extract text from Word document
       const result = await mammoth.extractRawText({ arrayBuffer });
       const text = result.value;
       setProgress(50);
 
       // Create PDF
+      const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
