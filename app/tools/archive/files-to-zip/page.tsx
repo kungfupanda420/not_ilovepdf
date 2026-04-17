@@ -3,7 +3,7 @@
 import { ToolPage } from "@/components/tool-page";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Download, Trash2, ZipIcon } from "lucide-react";
+import { Archive, Download, Trash2 } from "lucide-react";
 
 export default function FilesToZipPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -61,7 +61,7 @@ export default function FilesToZipPage() {
     <ToolPage
       title="Files to ZIP"
       description="Compress multiple files into a ZIP archive"
-      icon={ZipIcon}
+      icon={Archive}
     >
       <div className="max-w-3xl">
         {files.length === 0 ? (
@@ -70,7 +70,7 @@ export default function FilesToZipPage() {
             onDragOver={(e) => e.preventDefault()}
             className="rounded-lg border-2 border-dashed border-border p-12 text-center hover:border-foreground transition-colors cursor-pointer"
           >
-            <ZipIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <Archive className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="font-semibold mb-2">Drop files here</h3>
             <p className="text-sm text-muted-foreground mb-4">
               or click to select files
