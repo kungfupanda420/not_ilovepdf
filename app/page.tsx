@@ -21,6 +21,11 @@ import {
   Table,
   FileJson,
   FileCode,
+  ImagePlus,
+  Presentation,
+  Package,
+  Archive,
+  Wand2,
 } from "lucide-react";
 
 const pdfTools = [
@@ -66,6 +71,27 @@ const pdfTools = [
     href: "/tools/pdf/to-word",
     category: "PDF",
   },
+  {
+    title: "PDF to Image",
+    description: "Convert PDF pages to PNG, JPEG, or WebP images",
+    icon: ImagePlus,
+    href: "/tools/pdf/to-image",
+    category: "PDF",
+  },
+  {
+    title: "PDF to PPT",
+    description: "Convert PDF documents to PowerPoint presentations",
+    icon: Presentation,
+    href: "/tools/pdf/to-ppt",
+    category: "PDF",
+  },
+  {
+    title: "Compress PDF",
+    description: "Reduce PDF file size while preserving quality",
+    icon: Package,
+    href: "/tools/pdf/compress",
+    category: "PDF",
+  },
 ];
 
 const imageTools = [
@@ -88,6 +114,13 @@ const imageTools = [
     description: "Change image dimensions and scale",
     icon: Crop,
     href: "/tools/image/resize",
+    category: "Image",
+  },
+  {
+    title: "Edit Images",
+    description: "Crop, rotate, and adjust images",
+    icon: Wand2,
+    href: "/tools/image/edit",
     category: "Image",
   },
 ];
@@ -151,6 +184,27 @@ const documentTools = [
     icon: FileCode,
     href: "/tools/document/word-to-pdf",
     category: "Document",
+  },
+  {
+    title: "PPT to PDF",
+    description: "Convert PowerPoint presentations to PDF format",
+    icon: Presentation,
+    href: "/tools/document/ppt-to-pdf",
+    category: "Document",
+  },
+  {
+    title: "Text Extractor",
+    description: "Extract text from images and documents",
+    icon: Type,
+    href: "/tools/data/text-extractor",
+    category: "Data",
+  },
+  {
+    title: "Files to ZIP",
+    description: "Compress multiple files into a ZIP archive",
+    icon: Archive,
+    href: "/tools/archive/files-to-zip",
+    category: "Archive",
   },
 ];
 
