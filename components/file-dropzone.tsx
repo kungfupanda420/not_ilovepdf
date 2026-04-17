@@ -9,9 +9,11 @@ interface FileDropzoneProps {
   accept: string;
   multiple?: boolean;
   maxSize?: number;
-  onFilesSelected: (files: File[]) => void;
-  selectedFiles: File[];
-  onRemoveFile: (index: number) => void;
+  onFilesSelected?: (files: File[]) => void;
+  onFileSelect?: (file: File) => void;
+  selectedFiles?: File[];
+  selectedFile?: File | null;
+  onRemoveFile?: (index?: number) => void;
 }
 
 export function FileDropzone({
@@ -19,9 +21,12 @@ export function FileDropzone({
   multiple = false,
   maxSize = 200 * 1024 * 1024, // 200MB default
   onFilesSelected,
+  onFileSelect,
   selectedFiles,
+  selectedFile,
   onRemoveFile,
 }: FileDropzoneProps) {
+  const fileList = selectedFiles ?? (selectedFile ? [selectedFile] : []);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,7 +82,12 @@ export function FileDropzone({
 
       const validFiles = validateFiles(e.dataTransfer.files);
       if (validFiles.length > 0) {
-        onFilesSelected(multiple ? validFiles : [validFiles[0]]);
+        const selected = multiple ? validFiles : [validFiles[0]];
+        if (onFilesSelected) {
+          onFilesSelected(selected);
+        } else if (onFileSelect) {
+          onFileSelect(selected[0]);
+        }
       }
     },
     [validateFiles, onFilesSelected, multiple]
@@ -89,12 +99,17 @@ export function FileDropzone({
       if (e.target.files) {
         const validFiles = validateFiles(e.target.files);
         if (validFiles.length > 0) {
-          onFilesSelected(multiple ? validFiles : [validFiles[0]]);
+          const selected = multiple ? validFiles : [validFiles[0]];
+          if (onFilesSelected) {
+            onFilesSelected(selected);
+          } else if (onFileSelect) {
+            onFileSelect(selected[0]);
+          }
         }
       }
       e.target.value = "";
     },
-    [validateFiles, onFilesSelected, multiple]
+    [validateFiles, onFilesSelected, onFileSelect, multiple]
   );
 
   const formatFileSize = (bytes: number) => {
@@ -114,7 +129,7 @@ export function FileDropzone({
           isDragging
             ? "border-primary bg-primary/5"
             : "border-border hover:border-primary/50 hover:bg-secondary/50",
-          selectedFiles.length > 0 && "border-solid border-border bg-secondary/30"
+          fileList.length > 0 && "border-solid border-border bg-secondary/30"
         )}
       >
         <input
@@ -139,9 +154,9 @@ export function FileDropzone({
         </div>
       )}
 
-      {selectedFiles.length > 0 && (
+      {fileList.length > 0 && (
         <div className="space-y-2">
-          {selectedFiles.map((file, index) => (
+          {fileList.map((file, index) => (
             <div
               key={`${file.name}-${index}`}
               className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
@@ -155,7 +170,7 @@ export function FileDropzone({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 shrink-0"
-                onClick={() => onRemoveFile(index)}
+                onClick={() => onRemoveFile?.(fileList.length > 1 ? index : undefined)}
               >
                 <X className="h-4 w-4" />
               </Button>

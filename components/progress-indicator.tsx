@@ -5,11 +5,11 @@ import { CheckCircle, Loader2, AlertCircle } from "lucide-react";
 
 interface ProgressIndicatorProps {
   progress: number;
-  status: "idle" | "processing" | "complete" | "error";
+  status?: "idle" | "processing" | "complete" | "error";
   message?: string;
 }
 
-export function ProgressIndicator({ progress, status, message }: ProgressIndicatorProps) {
+export function ProgressIndicator({ progress, status = "processing", message }: ProgressIndicatorProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between text-sm">

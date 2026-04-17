@@ -5,7 +5,6 @@ import { FileDropzone } from "@/components/file-dropzone";
 import { Button } from "@/components/ui/button";
 import { ProgressIndicator } from "@/components/progress-indicator";
 import { useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
 import { Download, ImagePlus } from "lucide-react";
 
 export default function PDFToImagePage() {
@@ -25,6 +24,7 @@ export default function PDFToImagePage() {
     setImages([]);
 
     try {
+      const pdfjsLib = await import("pdfjs-dist");
       pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
       const arrayBuffer = await file.arrayBuffer();
