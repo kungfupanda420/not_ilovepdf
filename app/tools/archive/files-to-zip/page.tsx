@@ -36,7 +36,9 @@ export default function FilesToZipPage() {
 
       for (const file of files) {
         const arrayBuffer = await file.arrayBuffer();
-        zip.file(file.name, arrayBuffer);
+        // Use webkitRelativePath to maintain folder structure if available
+        const filePath = file.webkitRelativePath || file.name;
+        zip.file(filePath, arrayBuffer);
       }
 
       const zipBlob = await zip.generateAsync({ type: "blob" });
@@ -75,18 +77,36 @@ export default function FilesToZipPage() {
             <p className="text-sm text-muted-foreground mb-4">
               or click to select files
             </p>
-            <input
-              type="file"
-              multiple
-              onChange={handleFileInput}
-              className="hidden"
-              id="file-input"
-            />
-            <label htmlFor="file-input">
-              <Button asChild>
-                <span>Select Files</span>
-              </Button>
-            </label>
+            <div className="flex gap-4 justify-center">
+              <input
+                type="file"
+                multiple
+                onChange={handleFileInput}
+                className="hidden"
+                id="file-input"
+              />
+              <label htmlFor="file-input">
+                <Button asChild>
+                  <span>Select Files</span>
+                </Button>
+              </label>
+
+              <input
+                type="file"
+                multiple
+                //@ts-expect-error - webkitdirectory and directory are non-standard but required for folder selection
+                webkitdirectory="true"
+                directory="true"
+                onChange={handleFileInput}
+                className="hidden"
+                id="folder-input"
+              />
+              <label htmlFor="folder-input">
+                <Button variant="outline" asChild>
+                  <span>Select Folder</span>
+                </Button>
+              </label>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">

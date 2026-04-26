@@ -8,7 +8,7 @@ import { ProgressIndicator } from "@/components/progress-indicator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PDFDocument } from "pdf-lib";
+import { encryptPDF } from "@pdfsmaller/pdf-encrypt-lite"; // <-- Added this
 
 export default function ProtectPDFPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -49,25 +49,23 @@ export default function ProtectPDFPage() {
 
     try {
       const arrayBuffer = await files[0].arrayBuffer();
-      setProgress(30);
+      setProgress(40);
 
-      const pdf = await PDFDocument.load(arrayBuffer);
-      setProgress(60);
+      // Directly encrypt the raw file bytes
+      const pdfBytes = new Uint8Array(arrayBuffer);
+      const encryptedBytes = await encryptPDF(pdfBytes, password);
 
-      // Note: pdf-lib doesn't support encryption directly
-      // For full encryption, you'd need a different library
-      // This demonstrates the flow but saves without actual encryption
-      const pdfBytes = await pdf.save();
       setProgress(90);
 
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const blob = new Blob([encryptedBytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
 
       setDownloadUrl(url);
       setProgress(100);
       setStatus("complete");
-      setMessage("PDF processed! Note: Full encryption requires a server-side solution.");
-    } catch {
+      setMessage("PDF successfully protected with password!");
+    } catch (err) {
+      console.error(err);
       setStatus("error");
       setMessage("Failed to process PDF. Please ensure the file is valid.");
     }
@@ -113,9 +111,7 @@ export default function ProtectPDFPage() {
 
             <div className="rounded-lg bg-secondary/50 p-3">
               <p className="text-xs text-muted-foreground">
-                Note: True PDF encryption requires server-side processing. This tool demonstrates 
-                the client-side workflow but cannot add actual password protection without a 
-                specialized encryption library.
+                Your PDF will be protected with AES encryption. Keep your password safe.
               </p>
             </div>
           </div>
