@@ -177,7 +177,7 @@ export default function ImageResizePage() {
 
   return (
     <ToolPage
-      title="Interactive Cropper"
+      title="Image Resize & Crop"
       description="Drag the edges to visually crop and resize your image"
       icon={Crop}
     >
