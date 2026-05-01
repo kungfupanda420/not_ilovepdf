@@ -36,7 +36,7 @@ export function Header() {
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="https://github.com/your-username/your-repo" target="_blank" rel="noopener noreferrer">
+            <Link href="https://github.com/kungfupanda420/not_ilovepdf" target="_blank" rel="noopener noreferrer">
               <Github className="h-5 w-5" />
               <span className="sr-only">GitHub</span>
             </Link>

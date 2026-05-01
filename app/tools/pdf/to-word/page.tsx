@@ -38,10 +38,20 @@ export default function PDFToWordPage() {
     setMessage("Converting to Word...");
 
     try {
-      const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      const pdfjsLib = await import(
+        /* webpackIgnore: true */ 
+        "https://unpkg.com/pdfjs-dist@5.6.205/build/pdf.min.mjs"
+      );
+      
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs";
+
       const arrayBuffer = await files[0].arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await pdfjsLib.getDocument({ 
+        data: arrayBuffer,
+        cMapUrl: "https://unpkg.com/pdfjs-dist@5.6.205/cmaps/",
+        cMapPacked: true,
+      }).promise;
+      
       const numPages = pdf.numPages;
       const paragraphs: Paragraph[] = [];
 
@@ -49,25 +59,56 @@ export default function PDFToWordPage() {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         
-        // Group text items by approximate y-position to maintain some structure
-        const lines: { y: number; text: string }[] = [];
-        let currentLine = { y: 0, text: "" };
+        // 1. Extract all text items with their precise X, Y coordinates
+        const items = textContent.items
+          .filter((item): item is any => "str" in item && "transform" in item)
+          .map((item) => ({
+            text: item.str,
+            x: item.transform[4],
+            y: item.transform[5], 
+            width: item.width,
+          }));
 
-        textContent.items.forEach((item) => {
-          if ("str" in item && "transform" in item) {
-            const y = Math.round(item.transform[5]);
-            if (Math.abs(y - currentLine.y) > 5 && currentLine.text) {
-              lines.push({ ...currentLine });
-              currentLine = { y, text: item.str };
-            } else {
-              currentLine.y = y;
-              currentLine.text += (currentLine.text ? " " : "") + item.str;
-            }
+        // 2. Sort items: Top-to-Bottom (Descending Y), then Left-to-Right (Ascending X)
+        items.sort((a, b) => {
+          // If items are on the roughly same horizontal line (within 5 pixels)
+          if (Math.abs(a.y - b.y) <= 5) {
+            return a.x - b.x; // Sort left to right
           }
+          return b.y - a.y; // Sort top to bottom
         });
 
-        if (currentLine.text) {
-          lines.push(currentLine);
+        // 3. Reconstruct the lines based on the sorted data
+        const lines: string[] = [];
+        let currentY: number | null = null;
+        let currentLineText = "";
+        let lastX = 0;
+        let lastWidth = 0;
+
+        for (const item of items) {
+          // If this item is on a new line (Y dropped by more than 5 pixels)
+          if (currentY === null || Math.abs(currentY - item.y) > 5) {
+            if (currentLineText) lines.push(currentLineText.trim());
+            currentY = item.y;
+            currentLineText = item.text;
+          } else {
+            // Same line. Check if there's a physical gap between the last word and this one.
+            const gap = item.x - (lastX + lastWidth);
+            
+            // If there's a visual gap, and neither string has a natural space, inject one.
+            if (gap > 3 && !currentLineText.endsWith(" ") && !item.text.startsWith(" ")) {
+              currentLineText += " " + item.text;
+            } else {
+              currentLineText += item.text;
+            }
+          }
+          lastX = item.x;
+          lastWidth = item.width || 0;
+        }
+        
+        // Push the final line of the page
+        if (currentLineText) {
+          lines.push(currentLineText.trim());
         }
 
         // Add page header
@@ -84,17 +125,18 @@ export default function PDFToWordPage() {
           })
         );
 
-        // Add text lines
+        // Add the reconstructed text lines as paragraphs
         lines.forEach((line) => {
+          if (!line) return; // Skip completely empty lines
           paragraphs.push(
             new Paragraph({
               children: [
                 new TextRun({
-                  text: line.text,
+                  text: line,
                   size: 22,
                 }),
               ],
-              spacing: { after: 100 },
+              spacing: { after: 120 }, // slight spacing between lines
             })
           );
         });
@@ -119,7 +161,8 @@ export default function PDFToWordPage() {
       setProgress(100);
       setStatus("complete");
       setMessage(`Converted ${numPages} pages to Word!`);
-    } catch {
+    } catch (err) {
+      console.error(err);
       setStatus("error");
       setMessage("Failed to convert PDF. Please ensure the file is a valid PDF.");
     }
