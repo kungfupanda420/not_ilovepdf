@@ -1,127 +1,156 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { Crop, Download, Link, Unlink } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Crop, Download, Image as ImageIcon } from "lucide-react";
 import { ToolPage } from "@/components/tool-page";
 import { FileDropzone } from "@/components/file-dropzone";
 import { ProgressIndicator } from "@/components/progress-indicator";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type InteractionType = "move" | "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw" | null;
 
 export default function ImageResizePage() {
-  const [files, setFiles] = useState<File[]>([]);
-  const [progress, setProgress] = useState(0);
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
   const [status, setStatus] = useState<"idle" | "processing" | "complete" | "error">("idle");
-  const [message, setMessage] = useState("");
   const [downloadUrls, setDownloadUrls] = useState<{ url: string; name: string }[]>([]);
-  
-  const [resizeMode, setResizeMode] = useState<"dimensions" | "percentage">("dimensions");
-  const [width, setWidth] = useState("");
-  const [height, setHeight] = useState("");
-  const [percentage, setPercentage] = useState("50");
-  const [maintainAspectRatio, setMaintainAspectRatio] = useState(true);
-  const [originalDimensions, setOriginalDimensions] = useState<{ width: number; height: number } | null>(null);
 
-  const handleFilesSelected = useCallback(async (newFiles: File[]) => {
-    setFiles(newFiles);
+  // Crop Box State (stored as percentages 0-100 for responsive scaling)
+  const [crop, setCrop] = useState({ x: 10, y: 10, width: 80, height: 80 });
+  const [interacting, setInteracting] = useState<InteractionType>(null);
+  
+  const containerRef = useRef<HTMLDivElement>(null);
+  const imageObjRef = useRef<HTMLImageElement | null>(null);
+  const startPos = useRef({ x: 0, y: 0 });
+  const startCrop = useRef({ x: 0, y: 0, width: 0, height: 0 });
+
+  const handleFilesSelected = useCallback((newFiles: File[]) => {
+    if (newFiles.length === 0) return;
+    const selected = newFiles[0];
+    setFile(selected);
     setStatus("idle");
     setDownloadUrls([]);
+    setCrop({ x: 10, y: 10, width: 80, height: 80 });
 
-    if (newFiles.length > 0) {
-      const img = document.createElement("img");
-      img.src = URL.createObjectURL(newFiles[0]);
-      await new Promise<void>((resolve) => {
-        img.onload = () => {
-          setOriginalDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-          setWidth(String(img.naturalWidth));
-          setHeight(String(img.naturalHeight));
-          URL.revokeObjectURL(img.src);
-          resolve();
-        };
-      });
-    }
+    const url = URL.createObjectURL(selected);
+    setPreviewUrl(url);
+
+    const img = new Image();
+    img.src = url;
+    img.onload = () => {
+      imageObjRef.current = img;
+    };
   }, []);
 
   const handleRemoveFile = useCallback(() => {
-    setFiles([]);
+    setFile(null);
+    setPreviewUrl("");
     setDownloadUrls([]);
-    setOriginalDimensions(null);
-    setWidth("");
-    setHeight("");
+    imageObjRef.current = null;
   }, []);
 
+  // Global pointer events for smooth dragging even if the mouse leaves the box
   useEffect(() => {
-    if (maintainAspectRatio && originalDimensions && width) {
-      const newWidth = parseInt(width, 10);
-      if (!isNaN(newWidth)) {
-        const ratio = originalDimensions.height / originalDimensions.width;
-        setHeight(String(Math.round(newWidth * ratio)));
-      }
-    }
-  }, [width, maintainAspectRatio, originalDimensions]);
+    if (!interacting) return;
 
-  const resizeImages = async () => {
-    if (files.length === 0) {
-      setStatus("error");
-      setMessage("Please select an image");
-      return;
-    }
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!containerRef.current) return;
+      
+      // Prevent scrolling while dragging on mobile
+      e.preventDefault(); 
+
+      const rect = containerRef.current.getBoundingClientRect();
+      
+      // Calculate how far the mouse has moved as a percentage of the container
+      const deltaX = ((e.clientX - startPos.current.x) / rect.width) * 100;
+      const deltaY = ((e.clientY - startPos.current.y) / rect.height) * 100;
+
+      let { x, y, width, height } = startCrop.current;
+
+      if (interacting === "move") {
+        x = Math.max(0, Math.min(100 - width, x + deltaX));
+        y = Math.max(0, Math.min(100 - height, y + deltaY));
+      } else {
+        // Handle resizing based on which edge/corner is being dragged
+        if (interacting.includes("e")) {
+          width = Math.min(100 - x, width + deltaX);
+        }
+        if (interacting.includes("s")) {
+          height = Math.min(100 - y, height + deltaY);
+        }
+        if (interacting.includes("w")) {
+          const maxDelta = width;
+          const actualDelta = Math.max(-x, Math.min(maxDelta - 5, deltaX));
+          x += actualDelta;
+          width -= actualDelta;
+        }
+        if (interacting.includes("n")) {
+          const maxDelta = height;
+          const actualDelta = Math.max(-y, Math.min(maxDelta - 5, deltaY));
+          y += actualDelta;
+          height -= actualDelta;
+        }
+      }
+
+      // Ensure a minimum size of 5% so the box doesn't collapse on itself
+      setCrop({ 
+        x, 
+        y, 
+        width: Math.max(5, width), 
+        height: Math.max(5, height) 
+      });
+    };
+
+    const handlePointerUp = () => setInteracting(null);
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: false });
+    window.addEventListener("pointerup", handlePointerUp);
+    
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [interacting]);
+
+  const handlePointerDown = (e: React.PointerEvent, action: InteractionType) => {
+    e.stopPropagation();
+    setInteracting(action);
+    startPos.current = { x: e.clientX, y: e.clientY };
+    startCrop.current = { ...crop };
+  };
+
+  const executeCrop = async () => {
+    if (!file || !imageObjRef.current) return;
 
     setStatus("processing");
-    setProgress(0);
-    setMessage("Resizing image...");
     setDownloadUrls([]);
 
     try {
-      const file = files[0];
-      
-      const img = document.createElement("img");
-      img.crossOrigin = "anonymous";
-      
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error(`Failed to load ${file.name}`));
-        img.src = URL.createObjectURL(file);
-      });
-
-      let newWidth: number;
-      let newHeight: number;
-
-      if (resizeMode === "percentage") {
-        const scale = parseInt(percentage, 10) / 100;
-        newWidth = Math.round(img.naturalWidth * scale);
-        newHeight = Math.round(img.naturalHeight * scale);
-      } else {
-        newWidth = parseInt(width, 10) || img.naturalWidth;
-        newHeight = parseInt(height, 10) || img.naturalHeight;
-      }
-
-      setProgress(30);
-
+      const img = imageObjRef.current;
       const canvas = document.createElement("canvas");
-      canvas.width = newWidth;
-      canvas.height = newHeight;
       
+      // Calculate exact pixel dimensions based on the percentage crop box
+      const sx = (crop.x / 100) * img.naturalWidth;
+      const sy = (crop.y / 100) * img.naturalHeight;
+      const sw = (crop.width / 100) * img.naturalWidth;
+      const sh = (crop.height / 100) * img.naturalHeight;
+
+      canvas.width = sw;
+      canvas.height = sh;
+
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Could not get canvas context");
-      
+
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(img, 0, 0, newWidth, newHeight);
-
-      setProgress(70);
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
 
       const outputFormat = file.type === "image/png" ? "image/png" : "image/jpeg";
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
-          (blob) => {
-            if (blob) resolve(blob);
-            else reject(new Error("Failed to resize image"));
-          },
+          (b) => b ? resolve(b) : reject(new Error("Failed to crop")),
           outputFormat,
-          0.92
+          0.95
         );
       });
 
@@ -129,144 +158,134 @@ export default function ImageResizePage() {
       const extension = file.type === "image/png" ? "png" : "jpg";
       const baseName = file.name.replace(/\.[^/.]+$/, "");
 
-      setDownloadUrls([{
-        url,
-        name: `${baseName}-${newWidth}x${newHeight}.${extension}`,
-      }]);
-
-      URL.revokeObjectURL(img.src);
-      setProgress(100);
+      setDownloadUrls([{ url, name: `${baseName}-cropped.${extension}` }]);
       setStatus("complete");
-      setMessage(`Resized to ${newWidth}x${newHeight}!`);
     } catch (err) {
+      console.error(err);
       setStatus("error");
-      setMessage(err instanceof Error ? err.message : "Failed to resize image");
     }
   };
 
+  // Helper component for the drag handles
+  const Handle = ({ position, cursor, action }: { position: string, cursor: string, action: InteractionType }) => (
+    <div
+      onPointerDown={(e) => handlePointerDown(e, action)}
+      className={`absolute w-4 h-4 bg-primary border-2 border-white rounded-full shadow-sm z-20 ${position}`}
+      style={{ cursor }}
+    />
+  );
+
   return (
     <ToolPage
-      title="Resize Images"
-      description="Change image dimensions and scale"
+      title="Interactive Cropper"
+      description="Drag the edges to visually crop and resize your image"
       icon={Crop}
     >
-      <div className="space-y-6">
-        <FileDropzone
-          accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-          multiple={false}
-          onFilesSelected={handleFilesSelected}
-          selectedFiles={files}
-          onRemoveFile={handleRemoveFile}
-        />
+      <div className="space-y-6 max-w-4xl mx-auto">
+        {!previewUrl ? (
+          <FileDropzone
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            multiple={false}
+            onFilesSelected={handleFilesSelected}
+            selectedFiles={file ? [file] : []}
+            onRemoveFile={handleRemoveFile}
+          />
+        ) : (
+          <div className="space-y-6">
+            
+            {/* The Interactive Workspace */}
+            <div className="bg-muted/30 p-4 md:p-8 rounded-xl border border-border flex justify-center items-center select-none overflow-hidden touch-none">
+              <div 
+                ref={containerRef}
+                className="relative max-w-full max-h-[60vh] inline-block shadow-md rounded-md overflow-hidden"
+              >
+                {/* Base Image */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt="Workspace"
+                  className="block max-w-full max-h-[60vh] object-contain pointer-events-none"
+                  draggable={false}
+                />
 
-        {files.length > 0 && originalDimensions && (
-          <div className="rounded-lg border border-border p-4 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Original size: <span className="font-medium text-foreground">{originalDimensions.width} x {originalDimensions.height}</span>
-            </p>
+                {/* Cropping Box Overlay */}
+                <div
+                  className="absolute border-2 border-white/80 z-10 touch-none outline outline-[9999px] outline-black/60"
+                  style={{
+                    left: `${crop.x}%`,
+                    top: `${crop.y}%`,
+                    width: `${crop.width}%`,
+                    height: `${crop.height}%`,
+                    cursor: interacting ? "grabbing" : "grab",
+                  }}
+                  onPointerDown={(e) => handlePointerDown(e, "move")}
+                >
+                  {/* Grid Lines for visual aid */}
+                  <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-50">
+                    <div className="border-r border-b border-white" />
+                    <div className="border-r border-b border-white" />
+                    <div className="border-b border-white" />
+                    <div className="border-r border-b border-white" />
+                    <div className="border-r border-b border-white" />
+                    <div className="border-b border-white" />
+                    <div className="border-r border-white" />
+                    <div className="border-r border-white" />
+                    <div className="" />
+                  </div>
 
-            <div className="space-y-2">
-              <Label>Resize method</Label>
-              <Select value={resizeMode} onValueChange={(v) => setResizeMode(v as typeof resizeMode)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="dimensions">By dimensions</SelectItem>
-                  <SelectItem value="percentage">By percentage</SelectItem>
-                </SelectContent>
-              </Select>
+                  {/* 4 Corner Handles */}
+                  <Handle position="-top-2 -left-2" cursor="nwse-resize" action="nw" />
+                  <Handle position="-top-2 -right-2" cursor="nesw-resize" action="ne" />
+                  <Handle position="-bottom-2 -left-2" cursor="nesw-resize" action="sw" />
+                  <Handle position="-bottom-2 -right-2" cursor="nwse-resize" action="se" />
+
+                  {/* 4 Edge Handles */}
+                  <Handle position="-top-2 left-1/2 -translate-x-1/2" cursor="ns-resize" action="n" />
+                  <Handle position="-bottom-2 left-1/2 -translate-x-1/2" cursor="ns-resize" action="s" />
+                  <Handle position="top-1/2 -left-2 -translate-y-1/2" cursor="ew-resize" action="w" />
+                  <Handle position="top-1/2 -right-2 -translate-y-1/2" cursor="ew-resize" action="e" />
+                </div>
+              </div>
             </div>
 
-            {resizeMode === "percentage" ? (
-              <div className="space-y-2">
-                <Label htmlFor="percentage">Scale percentage</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="percentage"
-                    type="number"
-                    min="1"
-                    max="500"
-                    value={percentage}
-                    onChange={(e) => setPercentage(e.target.value)}
-                    className="w-24"
-                  />
-                  <span className="text-sm text-muted-foreground">%</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  New size: {Math.round(originalDimensions.width * (parseInt(percentage) || 100) / 100)} x {Math.round(originalDimensions.height * (parseInt(percentage) || 100) / 100)}
-                </p>
+            {/* Controls */}
+            <div className="bg-card p-6 rounded-lg border border-border shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+              <div className="flex-1 w-full text-center md:text-left text-sm text-muted-foreground flex items-center gap-2 justify-center md:justify-start">
+                <ImageIcon className="w-4 h-4" />
+                <span>Drag the box or edges to frame your perfect crop.</span>
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-end gap-4">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="width">Width (px)</Label>
-                    <Input
-                      id="width"
-                      type="number"
-                      min="1"
-                      value={width}
-                      onChange={(e) => setWidth(e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="mb-0.5"
-                    onClick={() => setMaintainAspectRatio(!maintainAspectRatio)}
-                    title={maintainAspectRatio ? "Unlink dimensions" : "Link dimensions"}
-                  >
-                    {maintainAspectRatio ? (
-                      <Link className="h-4 w-4" />
-                    ) : (
-                      <Unlink className="h-4 w-4" />
-                    )}
+
+              <div className="flex gap-3 w-full md:w-auto">
+                <Button variant="outline" onClick={handleRemoveFile} className="flex-1 md:flex-none">
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={executeCrop} 
+                  disabled={status === "processing"}
+                  className="flex-1 md:flex-none"
+                >
+                  <Crop className="w-4 h-4 mr-2" />
+                  {status === "processing" ? "Processing..." : "Crop & Save"}
+                </Button>
+              </div>
+            </div>
+
+            {status !== "idle" && status !== "complete" && (
+              <ProgressIndicator progress={50} status={status} />
+            )}
+
+            {downloadUrls.length > 0 && (
+              <div className="pt-2 animate-in fade-in slide-in-from-bottom-2">
+                {downloadUrls.map((item, index) => (
+                  <Button key={index} asChild variant="default" className="w-full text-lg py-6 shadow-md">
+                    <a href={item.url} download={item.name}>
+                      <Download className="h-5 w-5 mr-2" />
+                      Download Final Image
+                    </a>
                   </Button>
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="height">Height (px)</Label>
-                    <Input
-                      id="height"
-                      type="number"
-                      min="1"
-                      value={height}
-                      onChange={(e) => {
-                        if (!maintainAspectRatio) setHeight(e.target.value);
-                      }}
-                      disabled={maintainAspectRatio}
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {maintainAspectRatio ? "Aspect ratio locked" : "Aspect ratio unlocked"}
-                </p>
+                ))}
               </div>
             )}
-          </div>
-        )}
-
-        {status !== "idle" && (
-          <ProgressIndicator progress={progress} status={status} message={message} />
-        )}
-
-        <Button
-          onClick={resizeImages}
-          disabled={files.length === 0 || status === "processing"}
-          className="w-full"
-        >
-          {status === "processing" ? "Resizing..." : "Resize Image"}
-        </Button>
-
-        {downloadUrls.length > 0 && (
-          <div className="space-y-2">
-            {downloadUrls.map((item, index) => (
-              <Button key={index} asChild variant="secondary" className="w-full justify-start">
-                <a href={item.url} download={item.name}>
-                  <Download className="h-4 w-4 mr-2" />
-                  {item.name}
-                </a>
-              </Button>
-            ))}
           </div>
         )}
       </div>

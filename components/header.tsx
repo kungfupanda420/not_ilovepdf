@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Shield, Menu, X } from "lucide-react";
+import { Shield, Menu, X, Github } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -33,21 +33,38 @@ export function Header() {
           </Link>
         </nav>
 
-        <div className="hidden md:flex items-center gap-2">
+        {/* Desktop Actions */}
+        <div className="hidden md:flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="https://github.com/your-username/your-repo" target="_blank" rel="noopener noreferrer">
+              <Github className="h-5 w-5" />
+              <span className="sr-only">GitHub</span>
+            </Link>
+          </Button>
           <div className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5">
+            
             <Shield className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-medium text-muted-foreground">100% Private</span>
           </div>
+          
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
+        {/* Mobile Actions */}
+        <div className="flex items-center gap-2 md:hidden">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="https://github.com/kungfupanda420/not_ilovepdf" target="_blank" rel="noopener noreferrer">
+              <Github className="h-5 w-5" />
+              <span className="sr-only">GitHub</span>
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
       </div>
 
       {mobileMenuOpen && (
@@ -64,6 +81,10 @@ export function Header() {
             </Link>
             <Link href="#document-tools" className="text-sm font-medium text-muted-foreground hover:text-foreground py-2" onClick={() => setMobileMenuOpen(false)}>
               Documents
+            </Link>
+            <Link href="https://github.com/kungfupanda420/not_ilovepdf" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground py-2" onClick={() => setMobileMenuOpen(false)}>
+              <Github className="h-4 w-4" />
+              GitHub Repository
             </Link>
           </nav>
         </div>
